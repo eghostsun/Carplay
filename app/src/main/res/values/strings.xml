@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Carplay</string>
+    <string name="carBtn">我是小车</string>
+    <string name="driverBtn">我是司机</string>
+    <string name="title">请选择角色</string>
+    <string name="request_permission">需要开通摄像头权限</string>
+    <string name="camera_error">摄像头启动错误</string>
+</resources>
