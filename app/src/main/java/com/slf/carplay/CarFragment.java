@@ -59,19 +59,11 @@ import java.util.concurrent.TimeUnit;
 public class CarFragment extends Fragment
         implements ActivityCompat.OnRequestPermissionsResultCallback {
 
-    /**
-     * Conversion from screen rotation to JPEG orientation.
-     */
-    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    static {
-        ORIENTATIONS.append(Surface.ROTATION_0, 90);
-        ORIENTATIONS.append(Surface.ROTATION_90, 0);
-        ORIENTATIONS.append(Surface.ROTATION_180, 270);
-        ORIENTATIONS.append(Surface.ROTATION_270, 180);
-    }
+
 
     /**
      * Tag for the {@link Log}.
@@ -260,10 +252,7 @@ public class CarFragment extends Fragment
      */
     private boolean mFlashSupported;
 
-    /**
-     * Orientation of the camera sensor
-     */
-    private int mSensorOrientation;
+
 
     /**
      * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
@@ -504,11 +493,16 @@ public class CarFragment extends Fragment
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
 
-                // Find out if we need to swap dimension to get the preview size relative to sensor
-                // coordinate.
+                Point displaySize = new Point();
+                activity.getWindowManager().getDefaultDisplay().getSize(displaySize);
+                int rotatedPreviewWidth = width;
+                int rotatedPreviewHeight = height;
+                int maxPreviewWidth = displaySize.x;
+                int maxPreviewHeight = displaySize.y;
+
                 int displayRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
                 //noinspection ConstantConditions
-                mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+                int mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
                 boolean swappedDimensions = false;
                 switch (displayRotation) {
                     case Surface.ROTATION_0:
@@ -526,14 +520,6 @@ public class CarFragment extends Fragment
                     default:
                         Log.e(TAG, "Display rotation is invalid: " + displayRotation);
                 }
-
-                Point displaySize = new Point();
-                activity.getWindowManager().getDefaultDisplay().getSize(displaySize);
-                int rotatedPreviewWidth = width;
-                int rotatedPreviewHeight = height;
-                int maxPreviewWidth = displaySize.x;
-                int maxPreviewHeight = displaySize.y;
-
                 if (swappedDimensions) {
                     rotatedPreviewWidth = height;
                     rotatedPreviewHeight = width;
@@ -750,32 +736,8 @@ public class CarFragment extends Fragment
     }
 
     /**
-     * Initiate a still image capture.
-     */
-    private void takePicture() {
-        lockFocus();
-    }
-
-    /**
-     * Lock the focus as the first step for a still image capture.
-     */
-    private void lockFocus() {
-        try {
-            // This is how to tell the camera to lock focus.
-            mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
-                    CameraMetadata.CONTROL_AF_TRIGGER_START);
-            // Tell #mCaptureCallback to wait for the lock.
-            mState = STATE_WAITING_LOCK;
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
      * Run the precapture sequence for capturing a still image. This method should be called when
-     * we get a response in {@link #mCaptureCallback} from {@link #lockFocus()}.
+     * we get a response in {@link #mCaptureCallback} from {link lockFocus()}.
      */
     private void runPrecaptureSequence() {
         try {
@@ -793,7 +755,7 @@ public class CarFragment extends Fragment
 
     /**
      * Capture a still picture. This method should be called when we get a response in
-     * {@link #mCaptureCallback} from both {@link #lockFocus()}.
+     * {@link #mCaptureCallback} from both {link #lockFocus()}.
      */
     private void captureStillPicture() {
         try {
@@ -813,7 +775,7 @@ public class CarFragment extends Fragment
 
             // Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, CameraHelper.getOrientation(activity,rotation,mCameraId));
 
             CameraCaptureSession.CaptureCallback CaptureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -836,19 +798,7 @@ public class CarFragment extends Fragment
         }
     }
 
-    /**
-     * Retrieves the JPEG orientation from the specified screen rotation.
-     *
-     * @param rotation The screen rotation.
-     * @return The JPEG orientation (one of 0, 90, 270, and 360)
-     */
-    private int getOrientation(int rotation) {
-        // Sensor orientation is 90 for most devices, or 270 for some devices (eg. Nexus 5X)
-        // We have to take that into account and rotate JPEG properly.
-        // For devices with orientation of 90, we simply return our mapping from ORIENTATIONS.
-        // For devices with orientation of 270, we need to rotate the JPEG 180 degrees.
-        return (ORIENTATIONS.get(rotation) + mSensorOrientation + 270) % 360;
-    }
+
 
     /**
      * Unlock the focus. This method should be called when still image capture sequence is
